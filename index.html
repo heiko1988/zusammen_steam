@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Steam Spielvergleich</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Steam Spielvergleich</h1>
+
+    <div class="input-group">
+      <input type="text" id="steamInput" placeholder="SteamID64 oder Vanity Name" />
+      <button onclick="addUser()">Hinzufügen</button>
+    </div>
+
+    <div id="users"></div>
+
+    <div id="common-games" class="section"></div>
+
+    <p class="admin-link"><a href="admin.html">Admin Bereich</a></p>
+  </div>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>
