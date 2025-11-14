@@ -1,15 +1,43 @@
-jsconst STEAM_API_KEY = "AA0D60FDE8D4F015F5B89EC7B8FA0A41"; // Dein Key
-const ADMIN_PASSWORD = "1234"; // Dein Passwort
-const CACHE_TIME = 3600000; // 1 Stunde
+// =================== ÄNDERE HIER NUR, WENN NÖTIG ===================
+const STEAM_API_KEY = "AA0D60FDE8D4F015F5B89EC7B8FA0A41"; // Dein Key (bereits drin)
+const ADMIN_PASSWORD = "1234"; // Dein Passwort (bereits drin)
+// ===================================================================
 
-// Hilfsfunktionen
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => document.querySelectorAll(s);
+const CACHE_TIME = 3600000; // 1 Stunde
+const $ = s => document.querySelector(s);
+
+async function getSteamId64(input) {
+  input = input.trim().replace(/\/$/, ''); // Entferne trailing Slash
+
+  // Vollständiger Link: /profiles/ID64 → ID64 direkt extrahieren
+  if (input.includes('steamcommunity.com/profiles/')) {
+    const idMatch = input.match(/profiles\/(\d{17})/);
+    if (idMatch && idMatch[1]) return idMatch[1]; // Direkte ID64
+  }
+
+  // Vollständiger Link: /id/VANITY → Vanity extrahieren & auflösen
+  if (input.includes('steamcommunity.com/id/')) {
+    const vanity = input.split('id/')[1].split('/')[0].split('?')[0];
+    return await resolveVanity(vanity);
+  }
+
+  // Nur ID64 (Zahl mit 17 Ziffern) → Direkt zurückgeben
+  if (/^\d{17}$/.test(input)) return input;
+
+  // Sonst: Als Vanity behandeln & auflösen
+  return await resolveVanity(input);
+}
 
 async function resolveVanity(vanity) {
-  const res = await fetch(`https://api.steamcommunity.com/ISteamUser/ResolveVanityURL/v1/?key=${STEAM_API_KEY}&vanityurl=${vanity}`);
-  const data = await res.json();
-  return data.response.success === 1 ? data.response.steamid : null;
+  try {
+    const res = await fetch(`https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=${STEAM_API_KEY}&vanityurl=${vanity}`);
+    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    const data = await res.json();
+    return data.response.success === 1 ? data.response.steamid : null;
+  } catch (e) {
+    console.error('Resolve Error:', e);
+    return null;
+  }
 }
 
 async function getSteamData(steamid) {
@@ -20,181 +48,148 @@ async function getSteamData(steamid) {
     if (Date.now() - time < CACHE_TIME) return data;
   }
   try {
-    const [profileRes, gamesRes] = await Promise.all([
+    const [p, g] = await Promise.all([
       fetch(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamid}`),
       fetch(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${STEAM_API_KEY}&steamid=${steamid}&include_appinfo=1&include_played_free_games=1`)
     ]);
-    const profileData = await profileRes.json();
-    const gamesData = await gamesRes.json();
-    const player = profileData.response.players[0];
-    if (!player || !gamesData.response.games) return null;
+    if (!p.ok || !g.ok) throw new Error('API Fetch Error');
+    const profile = await p.json(), games = await g.json();
+    const player = profile.response.players[0];
+    if (!player || !games.response.games) return null;
     const data = {
-      steamid,
-      username: player.personaname,
-      avatar: player.avatarfull,
-      game_count: gamesData.response.game_count,
-      games: gamesData.response.games.map(g => ({
-        appid: g.appid,
-        name: g.name,
-        hours: Math.floor(g.playtime_forever / 60)
-      }))
+      steamid, username: player.personaname, avatar: player.avatarfull,
+      game_count: games.response.game_count,
+      games: games.response.games.map(g => ({ appid: g.appid, name: g.name, hours: Math.floor(g.playtime_forever / 60) }))
     };
     localStorage.setItem(cacheKey, JSON.stringify({ data, time: Date.now() }));
     return data;
   } catch (e) {
-    console.error(e);
+    console.error('Data Fetch Error:', e);
     return null;
   }
 }
 
 // Hauptseite
-if (window.location.pathname.includes("index.html") || window.location.pathname === "/") {
-  function saveUsers() {
-    const users = Array.from($$(".user-card")).map(c => c.dataset.id);
-    localStorage.setItem("steam_users", JSON.stringify(users));
-  }
+if (location.pathname.includes('index') || location.pathname === '/') {
+  const addButton = $('#addButton');
+  const input = $('#steamInput');
 
-  async function addUser() {
-    const input = $("#steamInput").value.trim();
-    if (!input) return;
-    let steamid = input;
-    if (!/^\d{17}$/.test(input)) {
-      steamid = await resolveVanity(input);
-      if (!steamid) {
-        alert("SteamID nicht gefunden oder Profil privat!");
+  if (addButton && input) {
+    addButton.addEventListener('click', async () => {
+      if (!STEAM_API_KEY || STEAM_API_KEY === 'DEIN_STEAM_API_KEY_HIER') {
+        alert('STEAM API KEY FEHLT! Gehe zu https://steamcommunity.com/dev/apikey');
         return;
       }
-    }
-    const data = await getSteamData(steamid);
-    if (!data) {
-      alert("Fehler: Profil privat oder nicht gefunden!");
-      return;
-    }
-    const users = JSON.parse(localStorage.getItem("steam_users") || "[]");
-    if (!users.includes(steamid)) {
-      users.push(steamid);
-      localStorage.setItem("steam_users", JSON.stringify(users));
-    }
-    renderUsers();
-    $("#steamInput").value = "";
-  }
-
-  // Neu: Event Listener für den Button (falls du id="addButton" nutzt)
-  document.addEventListener("DOMContentLoaded", () => {
-    const addButton = $("#addButton");
-    if (addButton) addButton.addEventListener("click", addUser);
-  });
-
-  async function renderUsers() {
-    const container = $("#users");
-    const users = JSON.parse(localStorage.getItem("steam_users") || "[]");
-    container.innerHTML = "";
-    const userData = await Promise.all(users.map(id => getSteamData(id)));
-    userData.forEach((data, i) => {
-      if (!data) return;
-      const div = document.createElement("div");
-      div.className = "user-card";
-      div.dataset.id = data.steamid;
-      div.innerHTML = `
-        <img src="${data.avatar}" alt="Avatar">
-        <div class="info">
-          <strong>${data.username}</strong>
-          <small>${data.game_count} Spiele</small>
-        </div>
-        <span class="refresh" onclick="forceRefresh('${data.steamid}')">Refresh</span>
-        <span class="remove" onclick="removeUser('${data.steamid}')">Remove</span>
-      `;
-      container.appendChild(div);
+      const raw = input.value.trim();
+      if (!raw) return;
+      const steamid = await getSteamId64(raw);
+      if (!steamid) { alert('Profil nicht gefunden oder privat! Überprüfe Link/Name.'); return; }
+      const data = await getSteamData(steamid);
+      if (!data) { alert('Fehler: Profil privat oder API-Limit erreicht!'); return; }
+      let users = JSON.parse(localStorage.getItem('steam_users') || '[]');
+      if (!users.includes(steamid)) users.push(steamid);
+      localStorage.setItem('steam_users', JSON.stringify(users));
+      renderUsers();
+      input.value = '';
     });
-    renderCommonGames(userData.filter(Boolean));
+
+    input.addEventListener('keypress', e => e.key === 'Enter' ? addButton.click() : 0);
   }
 
-  window.removeUser = (id) => {
-    let users = JSON.parse(localStorage.getItem("steam_users") || "[]");
+  window.removeUser = id => {
+    let users = JSON.parse(localStorage.getItem('steam_users') || '[]');
     users = users.filter(u => u !== id);
-    localStorage.setItem("steam_users", JSON.stringify(users));
+    localStorage.setItem('steam_users', JSON.stringify(users));
     localStorage.removeItem(`cache_${id}`);
     renderUsers();
   };
 
-  window.forceRefresh = async (id) => {
+  window.forceRefresh = async id => {
     localStorage.removeItem(`cache_${id}`);
     await getSteamData(id);
     renderUsers();
   };
 
-  function renderCommonGames(users) {
-    const container = $("#common-games");
-    if (users.length < 2) {
-      container.innerHTML = "";
-      return;
-    }
-    const gameMap = {};
-    users.forEach(u => {
-      u.games.forEach(g => {
-        if (!gameMap[g.appid]) gameMap[g.appid] = { ...g, users: [] };
-        gameMap[g.appid].users.push(u.username);
-      });
-    });
-    const common = Object.values(gameMap).filter(g => g.users.length === users.length);
-    if (common.length === 0) {
-      container.innerHTML = "<p>Keine gemeinsamen Spiele 😢</p>";
-      return;
-    }
-    container.innerHTML = `<h2>Gemeinsame Spiele (${common.length})</h2>` + common.map(g => `
-      <div class="game">
-        <strong>${g.name}</strong>
-        <span>${g.hours}h gespielt (insgesamt)</span>
+  async function renderUsers() {
+    const users = JSON.parse(localStorage.getItem('steam_users') || '[]');
+    const data = await Promise.all(users.map(getSteamData));
+    $('#users').innerHTML = data.filter(d => d).map(d => `
+      <div class="user-card">
+        <img src="${d.avatar}">
+        <div class="info"><strong>${d.username}</strong><small>${d.game_count} Spiele</small></div>
+        <span class="refresh" onclick="forceRefresh('${d.steamid}')">Refresh</span>
+        <span class="remove" onclick="removeUser('${d.steamid}')">Remove</span>
       </div>
-    `).join("");
+    `).join('') || '<p>Keine Profile hinzugefügt</p>';
+    renderCommon(data.filter(Boolean));
   }
 
-  // Init
+  function renderCommon(users) {
+    if (users.length < 2) { $('#common-games').innerHTML = ''; return; }
+    const map = {};
+    users.forEach(u => u.games.forEach(g => {
+      if (!map[g.appid]) map[g.appid] = { ...g, users: [] };
+      map[g.appid].users.push(u.username);
+      // Gesamtstunden berechnen (summiert über alle User)
+      map[g.appid].total_hours = (map[g.appid].total_hours || 0) + g.hours;
+    }));
+    const common = Object.values(map).filter(g => g.users.length === users.length).sort((a,b) => b.total_hours - a.total_hours);
+    $('#common-games').innerHTML = common.length ? `<h2>Gemeinsame Spiele (${common.length})</h2>` + common.map(g => `
+      <div class="game"><strong>${g.name}</strong><span>${g.total_hours}h gesamt</span></div>
+    `).join('') : `<h2>Keine gemeinsamen Spiele</h2>`;
+  }
+
   renderUsers();
 }
 
 // Admin Seite
-if (window.location.pathname.includes("admin.html")) {
-  window.login = () => {
-    if ($("#adminPass").value === ADMIN_PASSWORD) {
-      $("#login").classList.add("hidden");
-      $("#panel").classList.remove("hidden");
-      renderAdmin();
-    } else {
-      alert("Falsches Passwort!");
-    }
-  };
+if (location.pathname.includes('admin')) {
+  const loginBtn = $('#loginButton');
+  const refreshBtn = $('#refreshAllButton');
+  const clearBtn = $('#clearCacheButton');
 
-  window.refreshAll = async () => {
-    if (!confirm("Alle Benutzer neu laden?")) return;
-    const users = JSON.parse(localStorage.getItem("steam_users") || "[]");
-    for (const id of users) {
-      localStorage.removeItem(`cache_${id}`);
-      await getSteamData(id);
-    }
-    alert("Alle aktualisiert!");
+  if (loginBtn) {
+    loginBtn.addEventListener('click', () => {
+      if ($('#adminPass').value === ADMIN_PASSWORD) {
+        $('#login').classList.add('hidden');
+        $('#panel').classList.remove('hidden');
+        renderAdmin();
+      } else alert('Falsches Passwort!');
+    });
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      if (!confirm('Alle neu laden?')) return;
+      const users = JSON.parse(localStorage.getItem('steam_users') || '[]');
+      for (const id of users) { localStorage.removeItem(`cache_${id}`); await getSteamData(id); }
+      renderAdmin(); alert('Alle aktualisiert!');
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (!confirm('Cache leeren?')) return;
+      Object.keys(localStorage).filter(k => k.startsWith('cache_')).forEach(k => localStorage.removeItem(k));
+      alert('Cache geleert!');
+    });
+  }
+
+  window.forceRefresh = async id => {
+    localStorage.removeItem(`cache_${id}`);
+    await getSteamData(id);
     renderAdmin();
   };
 
-  window.clearCache = () => {
-    if (!confirm("Cache wirklich leeren?")) return;
-    Object.keys(localStorage).filter(k => k.startsWith("cache_")).forEach(k => localStorage.removeItem(k));
-    alert("Cache geleert!");
-  };
-
   async function renderAdmin() {
-    const container = $("#admin-users");
-    const users = JSON.parse(localStorage.getItem("steam_users") || "[]");
-    const data = await Promise.all(users.map(id => getSteamData(id)));
-    container.innerHTML = data.filter(Boolean).map(u => `
+    const users = JSON.parse(localStorage.getItem('steam_users') || '[]');
+    const data = await Promise.all(users.map(getSteamData));
+    $('#admin-users').innerHTML = data.filter(d => d).map(d => `
       <div class="user-card">
-        <img src="${u.avatar}" alt="Avatar">
-        <div class="info">
-          <strong>${u.username}</strong>
-          <small>${u.game_count} Spiele | Zuletzt: ${new Date().toLocaleString()}</small>
-        </div>
-        <span class="refresh" onclick="forceRefresh('${u.steamid}'); renderAdmin()">🔄</span>
+        <img src="${d.avatar}">
+        <div class="info"><strong>${d.username}</strong><small>${d.game_count} Spiele</small></div>
+        <span class="refresh" onclick="forceRefresh('${d.steamid}');renderAdmin()">Refresh</span>
       </div>
-    `).join("") || "<p>Keine Benutzer</p>";
+    `).join('') || '<p>Keine Nutzer</p>';
   }
 }
