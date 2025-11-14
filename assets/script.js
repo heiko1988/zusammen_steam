@@ -1,5 +1,5 @@
-const STEAM_API_KEY = "DEIN_STEAM_API_KEY"; // ← HIER EINTRAGEN!
-const ADMIN_PASSWORD = "dein_geheimes_passwort"; // ← ÄNDERN!
+const STEAM_API_KEY = "AA0D60FDE8D4F015F5B89EC7B8FA0A41"; // ← HIER EINTRAGEN!
+const ADMIN_PASSWORD = "1234"; // ← ÄNDERN!
 const CACHE_TIME = 3600000; // 1 Stunde
 
 // Hilfsfunktionen
