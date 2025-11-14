@@ -1,0 +1,72 @@
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #0f0f1a, #1a1a2e);
+  color: #eee;
+  min-height: 100vh;
+}
+.container {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #16213e;
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+}
+h1 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #00d4ff;
+  font-size: 2.2rem;
+}
+.input-group {
+  display: flex; gap: 10px; margin-bottom: 2rem;
+}
+.input-group input {
+  flex: 1; padding: 14px; border: none; border-radius: 10px;
+  background: #0f0f23; color: #fff; font-size: 1rem;
+}
+.input-group button, .btn-refresh, .btn-danger {
+  padding: 14px 24px; background: #00d4ff; border: none;
+  border-radius: 10px; color: #000; font-weight: bold; cursor: pointer;
+  transition: 0.2s;
+}
+.input-group button:hover, .btn-refresh:hover { background: #00b0d4; }
+.btn-danger { background: #ff6b6b; color: white; }
+.btn-danger:hover { background: #ff8787; }
+
+.user-card {
+  background: #1a1a2e; padding: 14px; border-radius: 12px;
+  display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+  position: relative; transition: 0.2s;
+}
+.user-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,123,255,0.2); }
+.user-card img { width: 50px; height: 50px; border-radius: 50%; }
+.user-card .info { flex: 1; }
+.user-card .info strong { display: block; font-size: 1.1rem; }
+.user-card .info small { color: #aaa; }
+.user-card .remove {
+  position: absolute; top: 10px; right: 10px; color: #ff6b6b;
+  font-size: 20px; cursor: pointer; text-decoration: none;
+}
+.user-card .refresh {
+  position: absolute; top: 10px; right: 35px; color: #00d4ff;
+  font-size: 18px; cursor: pointer;
+}
+
+.section { margin-top: 2rem; }
+.game {
+  background: #1a1a2e; padding:: 12px; border-radius: 10px;
+  margin-bottom: 10px; display: flex; justify-content: space-between;
+  font-size: 0.95rem;
+}
+.game strong { color: #00d4ff; }
+
+.admin-link { text-align: center; margin-top: 2rem; }
+.admin-link a { color: #888; font-size: 0.9rem; text-decoration: none; }
+.admin-link a:hover { color: #00d4ff; }
+
+.card { background: #1a1a2e; padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem; }
+.hidden { display: none; }
+
+#admin-users { margin-top: 1.5rem; }
