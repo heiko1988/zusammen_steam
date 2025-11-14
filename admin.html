@@ -1,24 +1,23 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin – Steam Vergleich</title>
-  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
   <div class="container">
     <h1>Admin Bereich</h1>
 
     <div id="login" class="card">
-      <input type="password" id="adminPass" placeholder="Passwort" />
-      <button onclick="login()">Einloggen</button>
+      <input type="password" id="adminPass" placeholder="Passwort">
+      <button id="loginButton">Einloggen</button>
     </div>
 
     <div id="panel" class="hidden">
-      <button onclick="refreshAll()" class="btn-refresh">Alle neu laden</button>
-      <button onclick="clearCache()" class="btn-danger">Cache leeren</button>
-
+      <button id="refreshAllButton" class="btn-refresh">Alle neu laden</button>
+      <button id="clearCacheButton" class="btn-danger">Cache leeren</button>
       <div id="admin-users"></div>
       <p><a href="index.html">← Zurück</a></p>
     </div>
